@@ -1,0 +1,48 @@
+name: 'firstlook'
+description: 'Instant PR contributor trust assessment. Know who is opening pull requests before you review.'
+author: 'AgentSeal'
+branding:
+  icon: 'eye'
+  color: 'blue'
+
+inputs:
+  github-token:
+    description: 'GitHub token for API calls'
+    required: false
+    default: ${{ github.token }}
+  security-paths:
+    description: 'Comma-separated path patterns treated as security-critical'
+    required: false
+    default: '.github/workflows/,package.json,package-lock.json,yarn.lock,pnpm-lock.yaml,Makefile,Dockerfile,scripts/,.npmrc,setup.py,pyproject.toml,Cargo.toml,go.sum,Gemfile.lock'
+  label-prefix:
+    description: 'Prefix for trust-tier labels applied to the PR'
+    required: false
+    default: 'firstlook'
+  post-comment:
+    description: 'Whether to post an assessment comment on the PR'
+    required: false
+    default: 'true'
+  apply-labels:
+    description: 'Whether to apply trust-tier labels to the PR'
+    required: false
+    default: 'true'
+  skip-collaborators:
+    description: 'Skip analysis for repo collaborators with write access or above'
+    required: false
+    default: 'true'
+  skip-users:
+    description: 'Comma-separated usernames to always skip'
+    required: false
+    default: ''
+
+outputs:
+  tier:
+    description: 'Trust tier: trusted, familiar, caution, or unknown'
+  score:
+    description: 'Numeric trust score (0-100)'
+  account-age-days:
+    description: 'Age of the contributor account in days'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

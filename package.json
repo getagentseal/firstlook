@@ -1,0 +1,22 @@
+{
+  "name": "firstlook",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GitHub Action for instant PR contributor trust assessment",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "ncc build src/index.ts --out dist --minify"
+  },
+  "keywords": ["github-action", "security", "supply-chain", "pr-review"],
+  "author": "AgentSeal",
+  "license": "MIT",
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@actions/github": "^6.0.0"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.1",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
+}
