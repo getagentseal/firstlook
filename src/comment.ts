@@ -1,10 +1,10 @@
 import { Assessment, ContributorSignals, Tier } from './types';
 
 const TIER_LABELS: Record<Tier, string> = {
-  trusted: 'TRUSTED',
-  familiar: 'FAMILIAR',
-  caution: 'REVIEW SUGGESTED',
-  unknown: 'UNKNOWN',
+  trusted: 'Trusted',
+  familiar: 'Needs Review',
+  caution: 'Risky',
+  unknown: 'Unknown',
 };
 
 const TIER_BADGE_COLORS: Record<Tier, string> = {
@@ -12,6 +12,13 @@ const TIER_BADGE_COLORS: Record<Tier, string> = {
   familiar: 'yellow',
   caution: 'orange',
   unknown: 'red',
+};
+
+const TIER_DOTS: Record<Tier, string> = {
+  trusted: '\ud83d\udfe2',
+  familiar: '\ud83d\udfe1',
+  caution: '\ud83d\udfe0',
+  unknown: '\ud83d\udd34',
 };
 
 export const COMMENT_MARKER = '<!-- firstlook-assessment -->';
@@ -24,7 +31,7 @@ function shieldsParam(text: string): string {
     .replace(/\//g, '%2F');
 }
 
-function badge(label: string, value: string, color: string, style = 'flat-square'): string {
+function shieldsBadge(label: string, value: string, color: string, style = 'flat-square'): string {
   const l = shieldsParam(label);
   const v = shieldsParam(value);
   return `![${label}](https://img.shields.io/badge/${l}-${v}-${color}?style=${style})`;
@@ -40,92 +47,98 @@ function ageText(days: number): string {
   return `${days} days`;
 }
 
-function scoreBar(score: number): string {
-  const filled = Math.round(score / 10);
-  return '\u2588'.repeat(filled) + '\u2591'.repeat(10 - filled);
+function ageQualifier(days: number): string {
+  if (days >= 730) return 'Long-term presence';
+  if (days >= 365) return 'Established';
+  if (days >= 180) return 'Growing';
+  return 'New account';
 }
 
-function signalBadges(s: ContributorSignals): string[] {
-  const badges: string[] = [];
+function activityLabel(activeMonths: number): string {
+  if (activeMonths >= 10) return 'Active';
+  if (activeMonths >= 6) return 'Regular';
+  if (activeMonths >= 3) return 'Sporadic';
+  return 'Minimal';
+}
 
-  badges.push(badge('account', ageText(s.accountAgeDays),
-    s.accountAgeDays >= 365 ? 'blue' : s.accountAgeDays >= 180 ? 'blue' : s.accountAgeDays >= 30 ? 'orange' : 'red'));
-
-  badges.push(badge('repos', `${s.publicRepos}`,
-    s.publicRepos >= 3 ? 'blue' : s.publicRepos >= 1 ? 'orange' : 'red'));
-
-  badges.push(badge('merged', `${s.mergedPRs}`,
-    s.mergedPRs >= 10 ? 'brightgreen' : s.mergedPRs >= 3 ? 'blue' : s.mergedPRs >= 1 ? 'orange' : 'red'));
-
-  badges.push(badge('rejected', `${s.closedPRs}`,
-    s.closedPRs === 0 ? 'blue' : s.closedPRs <= s.mergedPRs ? 'orange' : 'red'));
-
-  badges.push(badge('unique mergers', `${s.uniqueMergers}`,
-    s.uniqueMergers >= 3 ? 'brightgreen' : s.uniqueMergers >= 1 ? 'blue' : 'lightgrey'));
-
-  badges.push(badge('100%2B%E2%98%85 repos', `${s.highStarRepos}`,
-    s.highStarRepos >= 3 ? 'brightgreen' : s.highStarRepos >= 1 ? 'blue' : 'lightgrey'));
-
-  badges.push(badge('activity', `${s.activeMonths}/${s.totalMonths} mo`,
-    s.activeMonths >= 6 ? 'blue' : s.activeMonths >= 3 ? 'blue' : s.activeMonths >= 1 ? 'orange' : 'red'));
-
-  badges.push(badge('followers', `${s.followers}`,
-    s.followers >= 10 ? 'blue' : s.followers >= 3 ? 'blue' : 'lightgrey'));
-
-  badges.push(badge('signed', s.commitsSigned ? 'yes' : 'no',
-    s.commitsSigned ? 'brightgreen' : 'orange'));
-
-  if (s.profile.filledCount > 0) {
-    const fields: string[] = [];
-    if (s.profile.bio) fields.push('bio');
-    if (s.profile.company) fields.push('co');
-    if (s.profile.blog) fields.push('blog');
-    if (s.profile.twitter) fields.push('tw');
-    if (s.profile.email) fields.push('email');
-    badges.push(badge('profile', fields.join(' '), 'blue'));
-  }
-
-  for (const f of s.securityFiles.slice(0, 3)) {
-    badges.push(badge('security', f, 'red'));
-  }
-  if (s.securityFiles.length > 3) {
-    badges.push(badge('security', `+${s.securityFiles.length - 3} more`, 'red'));
-  }
-
-  return badges;
+function activityQualifier(activeMonths: number): string {
+  if (activeMonths >= 10) return 'Consistent activity';
+  if (activeMonths >= 6) return 'Regular activity';
+  if (activeMonths >= 3) return 'Sporadic activity';
+  return 'Minimal activity';
 }
 
 export function buildComment(assessment: Assessment): string {
   const { signals: s, tier, score, summary, patterns } = assessment;
 
-  const tierBadge = badge(TIER_LABELS[tier], `${score}%2F100`, TIER_BADGE_COLORS[tier], 'for--the--badge');
-  const bar = scoreBar(score);
-  const badges = signalBadges(s);
+  const tierBadge = shieldsBadge(TIER_LABELS[tier], '', TIER_BADGE_COLORS[tier], 'for--the--badge');
+  const scoreBadge = shieldsBadge('Trust_Score', `${score}%2F100`, TIER_BADGE_COLORS[tier]);
 
-  for (const p of patterns) {
-    const color = p.severity === 'critical' ? 'red' : 'orange';
-    badges.push(badge(`⚠ ${p.name}`, p.detail, color));
-  }
+  const totalPRs = s.mergedPRs + s.closedPRs;
+  const mergeRate = totalPRs > 0 ? Math.round((s.mergedPRs / totalPRs) * 100) : -1;
+  const qualityValue = mergeRate >= 0 ? `${mergeRate}%` : 'N/A';
+  const qualityDetail = totalPRs > 0
+    ? `${s.mergedPRs} merged \u00b7 ${s.closedPRs} rejected`
+    : 'No PRs yet';
 
   const lines: string[] = [
     COMMENT_MARKER,
     '',
     `### firstlook &nbsp; ${tierBadge}`,
     '',
-    `\`${bar}\``,
+    summary,
     '',
-    badges.join(' '),
+    `${scoreBadge} &nbsp; ${TIER_DOTS[tier]} ${tier === 'trusted' ? 'High' : tier === 'familiar' ? 'Medium' : 'Low'} confidence`,
     '',
-    `**${summary}**`,
+    '---',
+    '',
+    '**Key Signals**',
+    '',
+    '| Account age | Contribution quality | Recent activity |',
+    '|:---:|:---:|:---:|',
+    `| **${ageText(s.accountAgeDays)}** | **${qualityValue}** | **${activityLabel(s.activeMonths)}** |`,
+    `| ${ageQualifier(s.accountAgeDays)} | ${qualityDetail} | ${s.activeMonths}/${s.totalMonths} months |`,
   ];
 
+  if (patterns.length > 0) {
+    lines.push('', '---', '');
+    for (const p of patterns) {
+      const icon = p.severity === 'critical' ? '\ud83d\udea8' : '\u26a0\ufe0f';
+      lines.push(`${icon} **${p.name}** -- ${p.detail}`);
+    }
+  }
+
+  if (s.securityFiles.length > 0) {
+    lines.push('');
+    for (const f of s.securityFiles.slice(0, 3)) {
+      lines.push(`\ud83d\udd12 Modifying security-critical file: \`${f}\``);
+    }
+    if (s.securityFiles.length > 3) {
+      lines.push(`\ud83d\udd12 +${s.securityFiles.length - 3} more security-critical files`);
+    }
+  }
+
+  lines.push(
+    '',
+    '| Repos | Followers | Unique mergers | 100+ \u2605 repos | Signed |',
+    '|:---:|:---:|:---:|:---:|:---:|',
+    `| **${s.publicRepos}** | **${s.followers}** | **${s.uniqueMergers}** | **${s.highStarRepos}** | **${s.commitsSigned ? '\u2713' : '\u2717'}** |`,
+  );
+
   const details: string[] = [];
+  if (s.profile.filledCount > 0) {
+    const fields: string[] = [];
+    if (s.profile.bio) fields.push('Bio');
+    if (s.profile.company) fields.push('Company');
+    if (s.profile.blog) fields.push('Blog');
+    if (s.profile.twitter) fields.push('Twitter');
+    if (s.profile.email) fields.push('Email');
+    details.push(`- Profile: ${fields.join(', ')}`);
+  }
   if (s.codeReviews > 0) details.push(`- Code reviews given: ${s.codeReviews}`);
   if (s.selfMergeCount > 0 || s.externalMergeCount > 0) {
     details.push(`- Self-merged: ${s.selfMergeCount} | Externally merged: ${s.externalMergeCount}`);
   }
-  if (s.highStarRepos > 0)
-    details.push(`- Contributed to ${s.highStarRepos} repos with 100+ stars`);
   const repoTotal = s.repoMergedPRs + s.repoClosedPRs;
   if (repoTotal > 0) {
     details.push(`- This repo: ${s.repoMergedPRs} merged, ${s.repoClosedPRs} closed`);
@@ -134,7 +147,7 @@ export function buildComment(assessment: Assessment): string {
   }
 
   if (details.length > 0) {
-    lines.push('', '<details>', '<summary>Details</summary>', '', ...details, '', '</details>');
+    lines.push('', '<details>', '<summary>View full details</summary>', '', ...details, '', '</details>');
   }
 
   lines.push('', '<sub><a href="https://github.com/getagentseal/firstlook">firstlook</a></sub>');
