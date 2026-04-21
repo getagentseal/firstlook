@@ -116,7 +116,7 @@ export function buildComment(assessment: Assessment): string {
     '',
     badges.join(' '),
     '',
-    `> ${summary}`,
+    `**${summary}**`,
   ];
 
   const details: string[] = [];
