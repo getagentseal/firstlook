@@ -241,19 +241,25 @@ async function run(): Promise<void> {
     const results: ScanResult[] = [];
     for (let i = 0; i < prs.length; i++) {
       const pr = prs[i];
-      const assessment = await assessPR(
-        octokit, owner, repo, pr.number, pr.user!.login, pr.user!.type ?? 'User', config,
-      );
-      if (assessment) {
-        results.push({
-          prNumber: pr.number,
-          username: pr.user!.login,
-          tier: assessment.tier,
-          score: assessment.score,
-          patterns: assessment.patterns.length,
-        });
+      try {
+        const assessment = await assessPR(
+          octokit, owner, repo, pr.number, pr.user!.login, pr.user!.type ?? 'User', config,
+        );
+        if (assessment) {
+          results.push({
+            prNumber: pr.number,
+            username: pr.user!.login,
+            tier: assessment.tier,
+            score: assessment.score,
+            patterns: assessment.patterns.length,
+          });
+        }
+      } catch (err) {
+        core.warning(`[#${pr.number}] Failed: ${err instanceof Error ? err.message : err}`);
       }
       core.info(`Progress: ${i + 1}/${prs.length}`);
+      // Search API allows 30 requests/min; space out bulk scans
+      if (i < prs.length - 1) await new Promise(r => setTimeout(r, 3000));
     }
 
     await writeSummary(results);
