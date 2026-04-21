@@ -11,10 +11,14 @@ export async function gatherSignals(
   username: string,
   securityPaths: string[]
 ): Promise<ContributorSignals> {
-  const [userRes, searchRes, filesRes, commitsRes] = await Promise.all([
+  const [userRes, mergedRes, closedRes, filesRes, commitsRes] = await Promise.all([
     octokit.rest.users.getByUsername({ username }),
     octokit.rest.search.issuesAndPullRequests({
       q: `author:${username} is:pr is:merged -repo:${owner}/${repo}`,
+      per_page: 1,
+    }),
+    octokit.rest.search.issuesAndPullRequests({
+      q: `author:${username} is:pr is:unmerged is:closed -repo:${owner}/${repo}`,
       per_page: 1,
     }),
     octokit.rest.pulls.listFiles({ owner, repo, pull_number: prNumber }),
@@ -50,7 +54,8 @@ export async function gatherSignals(
     followers: user.followers,
     following: user.following,
     profile: { ...profileFields, filledCount },
-    mergedPRs: searchRes.data.total_count,
+    mergedPRs: mergedRes.data.total_count,
+    closedPRs: closedRes.data.total_count,
     commitsSigned: allSigned,
     securityFiles,
     prFileCount: filesRes.data.length,

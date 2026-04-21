@@ -15,6 +15,7 @@ export interface ContributorSignals {
     filledCount: number;
   };
   mergedPRs: number;
+  closedPRs: number;
   commitsSigned: boolean;
   securityFiles: string[];
   prFileCount: number;

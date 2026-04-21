@@ -40,7 +40,7 @@ export function buildComment(assessment: Assessment): string {
     `| **Account** | Created ${ageText(s.accountAgeDays)} ago | ${indicator(s.accountAgeDays >= 180)} |`,
     `| **Repos** | ${s.publicRepos} public | ${indicator(s.publicRepos >= 3)} |`,
     `| **Profile** | ${profileText(s.profile)} | ${indicator(s.profile.filledCount >= 2)} |`,
-    `| **History** | ${s.mergedPRs} merged PRs elsewhere | ${indicator(s.mergedPRs >= 3)} |`,
+    `| **History** | ${s.mergedPRs} merged, ${s.closedPRs} rejected elsewhere | ${indicator(s.mergedPRs >= 3 && s.closedPRs <= s.mergedPRs)} |`,
     `| **Followers** | ${s.followers} | ${indicator(s.followers >= 3)} |`,
     `| **Signed** | ${s.commitsSigned ? 'Yes' : 'No'} | ${indicator(s.commitsSigned)} |`,
   ];

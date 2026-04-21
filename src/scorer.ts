@@ -23,6 +23,13 @@ export function score(signals: ContributorSignals): Assessment {
   else if (signals.followers >= 10) points += 6;
   else if (signals.followers >= 3) points += 3;
 
+  const totalPRs = signals.mergedPRs + signals.closedPRs;
+  if (totalPRs >= 5) {
+    const mergeRate = signals.mergedPRs / totalPRs;
+    if (mergeRate >= 0.8) points += 5;
+    else if (mergeRate < 0.3) points -= 10;
+  }
+
   if (signals.commitsSigned) points += 10;
 
   if (signals.securityFiles.length > 0) points -= 15;
