@@ -84,7 +84,7 @@ export function buildComment(assessment: Assessment): string {
   const lines: string[] = [
     COMMENT_MARKER,
     '',
-    `### firstlook &nbsp; ${tierBadge}`,
+    `### ${tierBadge}`,
     '',
     summary,
     '',
