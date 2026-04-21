@@ -14,13 +14,6 @@ const TIER_BADGE_COLORS: Record<Tier, string> = {
   unknown: 'red',
 };
 
-const TIER_ALERT: Record<Tier, string> = {
-  trusted: 'NOTE',
-  familiar: 'TIP',
-  caution: 'WARNING',
-  unknown: 'CAUTION',
-};
-
 export const COMMENT_MARKER = '<!-- firstlook-assessment -->';
 
 function shieldsParam(text: string): string {
@@ -109,6 +102,11 @@ export function buildComment(assessment: Assessment): string {
   const bar = scoreBar(score);
   const badges = signalBadges(s);
 
+  for (const p of patterns) {
+    const color = p.severity === 'critical' ? 'red' : 'orange';
+    badges.push(badge(`⚠ ${p.name}`, p.detail, color));
+  }
+
   const lines: string[] = [
     COMMENT_MARKER,
     '',
@@ -117,17 +115,9 @@ export function buildComment(assessment: Assessment): string {
     `\`${bar}\``,
     '',
     badges.join(' '),
+    '',
+    `> ${summary}`,
   ];
-
-  if (patterns.length > 0) {
-    lines.push('');
-    for (const p of patterns) {
-      const alertType = p.severity === 'critical' ? 'CAUTION' : 'WARNING';
-      lines.push(`> [!${alertType}]`, `> **${p.name}** -- ${p.detail}`, '');
-    }
-  }
-
-  lines.push('', `> [!${TIER_ALERT[tier]}]`, `> ${summary}`);
 
   const details: string[] = [];
   if (s.codeReviews > 0) details.push(`- Code reviews given: ${s.codeReviews}`);
