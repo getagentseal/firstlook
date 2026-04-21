@@ -14,11 +14,11 @@ const TIER_BADGE_COLORS: Record<Tier, string> = {
   unknown: 'red',
 };
 
-const TIER_DOTS: Record<Tier, string> = {
-  trusted: '\ud83d\udfe2',
-  familiar: '\ud83d\udfe1',
-  caution: '\ud83d\udfe0',
-  unknown: '\ud83d\udd34',
+const CONFIDENCE: Record<Tier, string> = {
+  trusted: 'High',
+  familiar: 'Medium',
+  caution: 'Low',
+  unknown: 'Low',
 };
 
 export const COMMENT_MARKER = '<!-- firstlook-assessment -->';
@@ -88,7 +88,7 @@ export function buildComment(assessment: Assessment): string {
     '',
     summary,
     '',
-    `${scoreBadge} &nbsp; ${TIER_DOTS[tier]} ${tier === 'trusted' ? 'High' : tier === 'familiar' ? 'Medium' : 'Low'} confidence`,
+    `${scoreBadge} &nbsp; ${CONFIDENCE[tier]} confidence`,
     '',
     '---',
     '',
@@ -103,18 +103,18 @@ export function buildComment(assessment: Assessment): string {
   if (patterns.length > 0) {
     lines.push('', '---', '');
     for (const p of patterns) {
-      const icon = p.severity === 'critical' ? '\ud83d\udea8' : '\u26a0\ufe0f';
-      lines.push(`${icon} **${p.name}** -- ${p.detail}`);
+      const label = p.severity === 'critical' ? 'CRITICAL' : 'WARNING';
+      lines.push(`**${label}: ${p.name}** -- ${p.detail}`);
     }
   }
 
   if (s.securityFiles.length > 0) {
     lines.push('');
     for (const f of s.securityFiles.slice(0, 3)) {
-      lines.push(`\ud83d\udd12 Modifying security-critical file: \`${f}\``);
+      lines.push(`**Security:** \`${f}\``);
     }
     if (s.securityFiles.length > 3) {
-      lines.push(`\ud83d\udd12 +${s.securityFiles.length - 3} more security-critical files`);
+      lines.push(`**Security:** +${s.securityFiles.length - 3} more files`);
     }
   }
 
