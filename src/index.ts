@@ -12,6 +12,13 @@ const TIER_COLORS: Record<Tier, string> = {
   unknown: 'd93f0b',
 };
 
+const TIER_ORDER: Record<string, number> = {
+  unknown: 0,
+  caution: 1,
+  familiar: 2,
+  trusted: 3,
+};
+
 async function run(): Promise<void> {
   const token = core.getInput('github-token') || process.env.GITHUB_TOKEN;
   if (!token) {
@@ -54,7 +61,19 @@ async function run(): Promise<void> {
         return;
       }
     } catch {
-      // Not a collaborator -- continue
+      // Not a collaborator
+    }
+  }
+
+  const trustedOrgs = core.getInput('trusted-orgs')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  for (const org of trustedOrgs) {
+    try {
+      await octokit.rest.orgs.checkMembershipForUser({ org, username });
+      core.info(`${username} is a member of trusted org ${org} -- skipping.`);
+      return;
+    } catch {
+      // Not a member
     }
   }
 
@@ -63,11 +82,15 @@ async function run(): Promise<void> {
   const postComment = core.getInput('post-comment') !== 'false';
   const applyLabels = core.getInput('apply-labels') !== 'false';
   const labelPrefix = core.getInput('label-prefix') || 'firstlook';
+  const failOn = core.getInput('fail-on') || 'none';
 
   core.info(`Analyzing contributor: ${username}`);
   const signals = await gatherSignals(octokit, owner, repo, prNumber, username, securityPaths);
   const assessment = score(signals);
   core.info(`Result: ${assessment.tier} (score: ${assessment.score})`);
+  if (assessment.patterns.length > 0) {
+    core.warning(`Suspicious patterns: ${assessment.patterns.map(p => p.name).join(', ')}`);
+  }
 
   core.setOutput('tier', assessment.tier);
   core.setOutput('score', assessment.score.toString());
@@ -115,6 +138,12 @@ async function run(): Promise<void> {
       owner, repo, issue_number: prNumber, labels: [labelName],
     });
     core.info(`Applied label: ${labelName}`);
+  }
+
+  if (failOn !== 'none' && TIER_ORDER[assessment.tier] <= (TIER_ORDER[failOn] ?? -1)) {
+    core.setFailed(
+      `Contributor tier "${assessment.tier}" is at or below fail-on threshold "${failOn}".`,
+    );
   }
 }
 

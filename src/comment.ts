@@ -33,14 +33,25 @@ function profileText(profile: ContributorSignals['profile']): string {
   return fields.length > 0 ? fields.join(', ') : 'None provided';
 }
 
+function mergeQualityText(s: ContributorSignals): string {
+  const parts: string[] = [];
+  if (s.uniqueMergers > 0) parts.push(`${s.uniqueMergers} unique mergers`);
+  if (s.highStarRepos > 0) parts.push(`${s.highStarRepos} repos with 100+ stars`);
+  if (parts.length > 0) return parts.join(', ');
+  if (s.selfMergeCount > 0) return `${s.selfMergeCount} self-merged only`;
+  return 'No merge data';
+}
+
 export function buildComment(assessment: Assessment): string {
-  const { signals: s, tier, score, summary } = assessment;
+  const { signals: s, tier, score, summary, patterns } = assessment;
 
   const rows = [
     `| **Account** | Created ${ageText(s.accountAgeDays)} ago | ${indicator(s.accountAgeDays >= 180)} |`,
     `| **Repos** | ${s.publicRepos} public | ${indicator(s.publicRepos >= 3)} |`,
     `| **Profile** | ${profileText(s.profile)} | ${indicator(s.profile.filledCount >= 2)} |`,
     `| **History** | ${s.mergedPRs} merged, ${s.closedPRs} rejected elsewhere | ${indicator(s.mergedPRs >= 3 && s.closedPRs <= s.mergedPRs)} |`,
+    `| **Merge quality** | ${mergeQualityText(s)} | ${indicator(s.uniqueMergers >= 1 || s.highStarRepos >= 1)} |`,
+    `| **Activity** | ${s.activeMonths}/${s.totalMonths} months active | ${indicator(s.activeMonths >= 3)} |`,
     `| **Followers** | ${s.followers} | ${indicator(s.followers >= 3)} |`,
     `| **Signed** | ${s.commitsSigned ? 'Yes' : 'No'} | ${indicator(s.commitsSigned)} |`,
   ];
@@ -51,16 +62,44 @@ export function buildComment(assessment: Assessment): string {
     rows.push(`| **Security paths** | ${fileList}${extra} | :rotating_light: |`);
   }
 
-  return [
+  const lines = [
     COMMENT_MARKER,
     '### firstlook',
     '',
     '| Signal | Detail | |',
     '|--------|--------|---|',
     ...rows,
-    '',
-    `> **${TIER_LABELS[tier]}** (score: ${score}/100) -- ${summary}`,
-    '',
-    '<sub><a href="https://github.com/getagentseal/firstlook">firstlook</a></sub>',
-  ].join('\n');
+  ];
+
+  if (patterns.length > 0) {
+    lines.push('');
+    for (const p of patterns) {
+      const icon = p.severity === 'critical' ? ':rotating_light:' : ':warning:';
+      lines.push(`${icon} **${p.name}** -- ${p.detail}`);
+    }
+  }
+
+  lines.push('', `> **${TIER_LABELS[tier]}** (score: ${score}/100) -- ${summary}`);
+
+  const details: string[] = [];
+  if (s.codeReviews > 0) details.push(`- Code reviews given: ${s.codeReviews}`);
+  if (s.selfMergeCount > 0 || s.externalMergeCount > 0) {
+    details.push(`- Self-merged: ${s.selfMergeCount} | Externally merged: ${s.externalMergeCount}`);
+  }
+  if (s.highStarRepos > 0)
+    details.push(`- Contributed to ${s.highStarRepos} repos with 100+ stars`);
+  const repoTotal = s.repoMergedPRs + s.repoClosedPRs;
+  if (repoTotal > 0) {
+    details.push(`- This repo: ${s.repoMergedPRs} merged, ${s.repoClosedPRs} closed`);
+  } else {
+    details.push('- This repo: First-time contributor');
+  }
+
+  if (details.length > 0) {
+    lines.push('', '<details>', '<summary>Details</summary>', '', ...details, '', '</details>');
+  }
+
+  lines.push('', '<sub><a href="https://github.com/getagentseal/firstlook">firstlook</a></sub>');
+
+  return lines.join('\n');
 }
