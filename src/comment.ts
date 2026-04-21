@@ -104,7 +104,7 @@ export function buildComment(assessment: Assessment): string {
     lines.push('', '---', '');
     for (const p of patterns) {
       const label = p.severity === 'critical' ? 'CRITICAL' : 'WARNING';
-      lines.push(`**${label}: ${p.name}** -- ${p.detail}`);
+      lines.push(`**${label}: ${p.name}** ${p.detail}`);
     }
   }
 
