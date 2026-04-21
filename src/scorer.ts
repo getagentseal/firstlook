@@ -12,7 +12,7 @@ export function score(signals: ContributorSignals): Assessment {
   else if (signals.publicRepos >= 10) points += 7;
   else if (signals.publicRepos >= 3) points += 4;
 
-  points += Math.min(signals.profile.filledCount * 3, 12);
+  points += Math.min(signals.profile.filledCount * 2, 10);
 
   if (signals.mergedPRs >= 20) points += 15;
   else if (signals.mergedPRs >= 10) points += 11;

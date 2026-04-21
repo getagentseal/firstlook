@@ -48,7 +48,7 @@ export function buildComment(assessment: Assessment): string {
   const rows = [
     `| **Account** | Created ${ageText(s.accountAgeDays)} ago | ${indicator(s.accountAgeDays >= 180)} |`,
     `| **Repos** | ${s.publicRepos} public | ${indicator(s.publicRepos >= 3)} |`,
-    `| **Profile** | ${profileText(s.profile)} | ${indicator(s.profile.filledCount >= 2)} |`,
+    `| **Profile** | ${profileText(s.profile)} | ${indicator(s.profile.filledCount >= 1)} |`,
     `| **History** | ${s.mergedPRs} merged, ${s.closedPRs} rejected elsewhere | ${indicator(s.mergedPRs >= 3 && s.closedPRs <= s.mergedPRs)} |`,
     `| **Merge quality** | ${mergeQualityText(s)} | ${indicator(s.uniqueMergers >= 1 || s.highStarRepos >= 1)} |`,
     `| **Activity** | ${s.activeMonths}/${s.totalMonths} months active | ${indicator(s.activeMonths >= 3)} |`,
