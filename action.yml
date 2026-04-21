@@ -56,5 +56,5 @@ outputs:
     description: 'Age of the contributor account in days'
 
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/index.js'
