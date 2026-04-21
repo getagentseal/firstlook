@@ -42,6 +42,10 @@ inputs:
     description: 'Fail the check when tier is at or below this level (unknown, caution, familiar, none)'
     required: false
     default: 'none'
+  pr-number:
+    description: 'PR number to scan (workflow_dispatch only, leave empty to scan all open PRs)'
+    required: false
+    default: ''
 
 outputs:
   tier:

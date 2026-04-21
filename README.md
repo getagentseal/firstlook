@@ -15,6 +15,12 @@ name: firstlook
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        description: 'PR number to scan (leave empty to scan all open PRs)'
+        required: false
+        type: string
 
 jobs:
   assess:
@@ -24,9 +30,13 @@ jobs:
       contents: read
     steps:
       - uses: getagentseal/firstlook@v1
+        with:
+          pr-number: ${{ inputs.pr-number }}
 ```
 
 No configuration needed. It works out of the box.
+
+New PRs are assessed automatically. For existing PRs, go to **Actions > firstlook > Run workflow** -- leave the PR number empty to scan every open PR at once, or enter a number to scan one.
 
 ## What you get
 
@@ -39,13 +49,15 @@ Every PR gets a comment like this:
 > | **Account** | Created 4y 2mo ago | :white_check_mark: |
 > | **Repos** | 36 public | :white_check_mark: |
 > | **Profile** | Bio, Company, Blog | :white_check_mark: |
-> | **History** | 89 merged PRs elsewhere | :white_check_mark: |
+> | **History** | 89 merged, 3 rejected elsewhere | :white_check_mark: |
+> | **Merge quality** | 5 unique mergers, 3 repos with 100+ stars | :white_check_mark: |
+> | **Activity** | 10/12 months active | :white_check_mark: |
 > | **Followers** | 142 | :white_check_mark: |
 > | **Signed** | Yes | :white_check_mark: |
 >
-> **Trusted** (score: 92/100) -- Established contributor with a verified presence across GitHub.
+> **Trusted** (score: 88/100) -- Established contributor with a verified presence across GitHub.
 
-And a label like `firstlook: trusted` gets applied to the PR.
+A label like `firstlook: trusted` gets applied, and a collapsible Details section shows merger breakdown, repo-specific history, and code review count.
 
 When something needs attention:
 
@@ -53,15 +65,18 @@ When something needs attention:
 >
 > | Signal | Detail | |
 > |--------|--------|---|
-> | **Account** | Created 12 days ago | :warning: |
-> | **Repos** | 0 public | :warning: |
-> | **Profile** | None provided | :warning: |
-> | **History** | 0 merged PRs elsewhere | :warning: |
-> | **Followers** | 0 | :warning: |
+> | **Account** | Created 42 days ago | :warning: |
+> | **Repos** | 928 public | :warning: |
+> | **Profile** | Bio | :warning: |
+> | **History** | 2 merged, 0 rejected elsewhere | :warning: |
+> | **Merge quality** | 2 self-merged only | :warning: |
+> | **Activity** | 1/12 months active | :warning: |
+> | **Followers** | 56 | :white_check_mark: |
 > | **Signed** | No | :warning: |
-> | **Security paths** | `.github/workflows/ci.yml` | :rotating_light: |
 >
-> **Unknown Contributor** (score: 0/100) -- Very new or empty account. Touching security-critical paths -- thorough review strongly recommended.
+> :rotating_light: **Repo Spam** -- 928 repos in 42 days (22.1/day)
+>
+> **Unknown Contributor** (score: 0/100) -- Suspicious patterns detected. Thorough review strongly recommended.
 
 ## Trust tiers
 
@@ -77,10 +92,24 @@ When something needs attention:
 - **Account age** -- how long the GitHub account has existed
 - **Public repos** -- number of public repositories
 - **Profile completeness** -- bio, company, blog, twitter, email
-- **Contribution history** -- merged PRs to other repositories (excludes your repo)
+- **Contribution history** -- merged and rejected PRs to other repositories
+- **Merge quality** -- unique maintainers who merged their PRs, contributions to repos with 100+ stars
+- **Activity consistency** -- how many of the last 12 months had any GitHub activity
+- **Code reviews** -- reviews given to other contributors
+- **Repo history** -- returning contributor or first-timer in your repo
 - **Followers** -- community recognition
 - **Commit signatures** -- whether commits in this PR are signed and verified
 - **Security-critical files** -- whether the PR touches CI, lockfiles, build scripts, or dependency manifests
+
+## Suspicious pattern detection
+
+Cross-signal rules that catch gaming attempts individual metrics would miss:
+
+- **Repo Spam** -- hundreds of repos created in days (bot/automation accounts)
+- **Self-Merge Only** -- all PRs self-merged, no external validation
+- **High PR Volume** -- excessive merged PRs on a very new account
+- **Dormant Reactivation** -- old account with activity only in the last few weeks
+- **Low Quality Repos** -- many repos but none with meaningful stars, no external mergers
 
 ## Configuration
 
@@ -109,6 +138,13 @@ All inputs are optional. Defaults work for most projects.
 
     # Usernames to always skip (comma-separated)
     skip-users: 'dependabot,renovate'
+
+    # Org members to auto-trust (comma-separated org names)
+    trusted-orgs: 'my-org'
+
+    # Fail the check when tier is at or below this level (default: none)
+    # Options: unknown, caution, familiar, none
+    fail-on: 'unknown'
 ```
 
 ## Outputs
@@ -131,19 +167,32 @@ steps:
 ### Block merges on untrusted contributors
 
 ```yaml
-  - uses: getagentseal/firstlook@v1
-    id: fl
-  - name: Gate on trust tier
-    if: steps.fl.outputs.tier == 'unknown'
-    run: |
-      echo "::error::PR author is an unknown contributor. Manual approval required."
-      exit 1
+- uses: getagentseal/firstlook@v1
+  with:
+    fail-on: 'unknown'
 ```
+
+Or use outputs for custom logic:
+
+```yaml
+- uses: getagentseal/firstlook@v1
+  id: fl
+- name: Gate on trust tier
+  if: steps.fl.outputs.tier == 'unknown' || steps.fl.outputs.tier == 'caution'
+  run: |
+    echo "::error::PR author needs manual approval (tier: ${{ steps.fl.outputs.tier }})"
+    exit 1
+```
+
+### Scan all existing PRs on install
+
+Go to **Actions > firstlook > Run workflow** and leave PR number empty. Every open PR gets assessed and you see a summary table in the job output.
 
 ## What it skips
 
 - **Bot accounts** -- dependabot, renovate, etc. are skipped automatically
 - **Repo collaborators** -- users with write, maintain, or admin access are skipped by default
+- **Trusted org members** -- anyone in orgs listed in `trusted-orgs`
 - **Allow-listed users** -- anyone in the `skip-users` list
 
 ## Built by
