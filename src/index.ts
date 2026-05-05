@@ -100,44 +100,52 @@ async function assessPR(
   }
 
   if (config.postComment) {
-    const body = buildComment(assessment);
-    const comments = await octokit.paginate(octokit.rest.issues.listComments, {
-      owner, repo, issue_number: prNumber, per_page: 100,
-    });
-    const existing = comments.find(c => c.body?.includes(COMMENT_MARKER));
+    try {
+      const body = buildComment(assessment);
+      const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+        owner, repo, issue_number: prNumber, per_page: 100,
+      });
+      const existing = comments.find(c => c.body?.includes(COMMENT_MARKER));
 
-    if (existing) {
-      await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-    } else {
-      await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+      if (existing) {
+        await octokit.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+      } else {
+        await octokit.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
+      }
+    } catch (err) {
+      core.warning(`${tag} Could not post comment (fork PRs have read-only tokens): ${err instanceof Error ? err.message : err}`);
     }
   }
 
   if (config.applyLabels) {
-    const labelName = `${config.labelPrefix}: ${assessment.tier}`;
-
     try {
-      await octokit.rest.issues.getLabel({ owner, repo, name: labelName });
-    } catch {
-      await octokit.rest.issues.createLabel({
-        owner, repo, name: labelName, color: TIER_COLORS[assessment.tier],
-      });
-    }
+      const labelName = `${config.labelPrefix}: ${assessment.tier}`;
 
-    const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
-      owner, repo, issue_number: prNumber,
-    });
-    for (const label of prLabels) {
-      if (label.name.startsWith(`${config.labelPrefix}:`) && label.name !== labelName) {
-        await octokit.rest.issues.removeLabel({
-          owner, repo, issue_number: prNumber, name: label.name,
+      try {
+        await octokit.rest.issues.getLabel({ owner, repo, name: labelName });
+      } catch {
+        await octokit.rest.issues.createLabel({
+          owner, repo, name: labelName, color: TIER_COLORS[assessment.tier],
         });
       }
-    }
 
-    await octokit.rest.issues.addLabels({
-      owner, repo, issue_number: prNumber, labels: [labelName],
-    });
+      const { data: prLabels } = await octokit.rest.issues.listLabelsOnIssue({
+        owner, repo, issue_number: prNumber,
+      });
+      for (const label of prLabels) {
+        if (label.name.startsWith(`${config.labelPrefix}:`) && label.name !== labelName) {
+          await octokit.rest.issues.removeLabel({
+            owner, repo, issue_number: prNumber, name: label.name,
+          });
+        }
+      }
+
+      await octokit.rest.issues.addLabels({
+        owner, repo, issue_number: prNumber, labels: [labelName],
+      });
+    } catch (err) {
+      core.warning(`${tag} Could not apply labels (fork PRs have read-only tokens): ${err instanceof Error ? err.message : err}`);
+    }
   }
 
   return assessment;
